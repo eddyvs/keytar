@@ -1,0 +1,71 @@
+###############################################
+Total Time: 320 minutes
+###############################################
+
+###############################################
+Date: 10/3-oct
+Start Time: 11:30pm oct 2
+End Time: 1:28 am oct 3
+Duration; 120 minutes
+Description: 
+
+Research into pyaudio, aubio and librosa, 
+
+rudimentary pyaudio mic input testing
+
+signal processing with aubio
+
+note processing with librosa
+
+keybind processing with pydirectinput
+
+keybind dictionary set up!
+
+next steps: add more keybinds, work on a visual component, add failsafes and general efficiency to my loop
+###############################################
+
+###############################################
+Date: 10/3-oct
+Start Time: 11:30am oct 3
+End Time: 12:30 am oct 3
+Duration; 60 minutes
+Description: 
+
+added mouse movements and clicking
+
+
+generated a simple visual component that shows the keyboard  using codex.
+needs some work, it doesnt work great.
+
+
+next steps: make visual component recognize keys better, add keybind changing through some kind of text file, make all videogames recognize mouse movement? add holding the click.
+
+
+###############################################
+
+
+######################################
+
+Date: 10/4-oct
+Start Time: 12:00am oct 4
+End Time: 2 pm 
+Duration; 120 minutes
+Description: 
+
+added visual component running on a seperate thread, decided against keybind changing and instead added the ability to toggle into a morse code mode. also added right click and space.
+
+next steps: polish up codebase and film video!
+#############################
+
+######################################
+
+Date: 10/4-oct
+Start Time: 4pm oct 4
+End Time: 4:20 pm 
+Duration; 20 minutes
+Description: 
+
+polished up code organization a bit more
+
+next steps: polish up codebase and film video!
+#############################

@@ -1,0 +1,15 @@
+#
+
+Source: pyaudio docs
+
+Desc: to understand the pyaudio package
+
+#
+
+#
+
+source: https://stackoverflow.com/questions/40704026/voice-recording-using-pyaudio
+
+desc: understanding how to practically read audio I/O with pyaudio
+
+#

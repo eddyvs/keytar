@@ -1,0 +1,5 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python.defaultInterpreterPath": "C:/Users/eddyv/AppData/Local/Programs/Python/Python313/python.exe",
+    "python.terminal.activateEnvironment": false
+}

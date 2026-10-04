@@ -1,0 +1,559 @@
+You can store your prompts and AI responses however you want in this folder.
+You can place them all in one file, or one per file.
+You can store them in a text file, an xlsx file, or whatever you want.
+
+Here is an example:
+
+###############################################
+Prompt to codex:
+
+i have an input from pyaudio with my stream, can you make sure that this is actually functioning? and then can you give me pointers on how to then recognize notes using aubio?
+
+
+I’ll inspect the PyAudio stream setup in main.py and check whether the current run is actually capturing frames or merely exiting cleanly. Then I’ll make the smallest useful fix if the local code shows a capture issue, and give you a practical aubio note-detection path.
+
+
+
+
+The concrete issue is already visible: the loop reads one audio frame at a time (read(1)), so CHUNK = 1024 is never used and the 5,000 reads capture only about 0.11 seconds. I’m checking the project’s Python workflow and the available input devices next; that will distinguish a real capture path from a stream that opens but isn’t reading the intended microphone.
+
+
+
+
+
+There are no repository instructions or existing test config in this small project. I’ll verify what PyAudio devices the selected Python environment sees and whether an actual read returns nonempty samples; then I can adjust main.py around the real device behavior rather than just correcting the obvious buffer-size bug.
+
+The environment confirms PyAudio and aubio are both installed, and device index 1 is a real stereo microphone at 44.1 kHz. Next I’m doing a short live capture and checking sample count plus RMS/peak; the prior script’s successful exit alone doesn’t prove the samples contain microphone signal.
+
+The live check passed: device 1 returned 22,528 samples over 0.51 seconds with nonzero audio (RMS 614.57, peak 2,312). I’m updating main.py to read full 1,024-frame blocks for a usable five-second capture, report a compact signal summary instead of dumping thousands of values, and always close the stream cleanly.
+
+main.py now completes a full capture successfully: 220,160 samples in 4.99 seconds, with nonzero RMS and peak. I’m doing one small aubio API check with a known 440 Hz signal so the note-recognition example uses the installed version’s actual behavior and method names.
+
+Checked main.py, no problems found
+
+The capture is working. I verified microphone device 1 with a live read, then ran the updated main.py: it captured 220,160 samples in 4.99 seconds and reported RMS 727.89 and peak 3,062. The old read(1) loop captured only about 0.11 seconds total; it now reads full 1,024-frame blocks and reports signal levels instead of printing every sample.
+
+For aubio, start with monophonic pitch detection. Process each PyAudio block as normalized float32 samples, and use aubio’s yin detector:
+
+I checked the installed aubio version against a synthetic 440 Hz tone; it reported approximately 440 Hz and A4. Filter out silence and low-confidence estimates, and expect repeated note reports while a note is held. This is for one predominant note at a time; chords need a different approach.
+
+CODE GENERATED:
+
+import aubio
+
+pitch_detector = aubio.pitch("yin", 2048, CHUNK, RATE)
+pitch_detector.set_unit("Hz")
+pitch_detector.set_tolerance(0.8)
+
+# For each frame returned by stream.read(CHUNK):
+samples = np.frombuffer(frame, dtype=np.int16).astype(np.float32) / 32768.0
+frequency = float(pitch_detector(samples)[0])
+confidence = pitch_detector.get_confidence()
+
+if frequency > 0 and confidence > 0.7:  # Tune this threshold for your mic
+    print(aubio.freq2note(frequency), frequency, confidence)
+
+
+
+###############################################
+
+
+#####
+
+prompt to codex:
+
+375.0664978027344
+377.3865966796875
+377.4422912597656
+379.2940368652344
+379.6398010253906
+379.21856689453125
+379.5072326660156
+380.5365295410156
+380.61029052734375
+380.5773010253906
+381.6644592285156
+384.5523986816406
+387.4847412109375
+386.7532958984375
+382.24652099609375
+373.10943603515625
+64.62422943115234
+56.06230545043945
+88200.0
+88200.0
+61.63917922973633
+61.68941116333008
+59.99604415893555
+56.47200393676758
+57.50410461425781
+7659.84716796875
+57.62916946411133
+56.37247085571289
+70.083984375
+7795.4697265625
+88200.0
+88200.0
+88199.9765625
+63.02487564086914
+58.182857513427734
+58.97945022583008
+59.054874420166016
+62.286163330078125 these are some of the numbers i get out of frequency, what do these represent?
+
+RESPONSE:
+
+Those are aubio’s frequency estimates in hertz, one estimate per audio block. They aren’t note names, and individual estimates can jump when the sound is quiet, noisy, or between notes.
+
+Around 375–387 Hz: roughly F♯4, drifting toward G4. F♯4 is about 370 Hz; G4 is about 392 Hz.
+Around 56–65 Hz: roughly the A1–C2 range. If you’re playing higher notes, these may be low-frequency noise or incorrect estimates.
+7,659 Hz: unusually high for a musical fundamental; likely a transient, noise, or a pitch-tracking error.
+88,200 Hz: not a valid pitch from a 44.1 kHz recording. The Nyquist limit is 22,050 Hz, so treat this as an invalid estimate.
+Try printing the note and aubio confidence together, and only accept estimates inside the range you expect:
+
+###
+
+###
+
+prompt to codex:
+
+using cmu graphics with MVC, incorporate a visual compopnent that shows a keyboard and the current key being pressed
+
+RESPONSE:
+
+Added an MVC-style CMU Graphics interface in main.py. The audio controller now runs through onStep, the app state tracks the detected note and mapped output, and the view shows a keyboard with the active letter, arrow, or click control highlighted.
+
+Python syntax compilation and editor diagnostics passed. I didn’t launch the app, so microphone and live rendering behavior remain unverified.
+
+#####
+
+
+
+#####
+
+prompt to codex:
+.py"
+An error occurred. Here is the stack trace:
+  "c:\Users\eddyv\OneDrive\Desktop\CODE\Carnegie line 167:
+        cmu_graphics.runApp(width=560, height=380)
+KeyError: 'app'
+PS C:\Users\eddyv\OneDrive\Desktop\CODE\Carnegie Mellon\112 mini proj> 
+
+RESPONSE: 
+
+Fixed the KeyError: 'app' by explicitly importing CMU Graphics’ app object into the script globals, as its MVC setup expects. The MVC setup check, syntax compile, and editor diagnostics all pass.
+
+#############
+
+
+#####
+
+prompt 3 to codex:
+
+using cmu graphics with MVC, incorporate a visual compopnent that shows a keyboard and the current key being pressed
+
+i reverted this prompt, it tried to incorporate cmu graphics and failed horribly. I will come back to this.
+
+
+#######
+
+
+
+
+
+#########
+
+prompt 4 to codex: what is causing my threads to not work together?
+
+response:
+Two things in [main.py](<C:/Users/eddyv/OneDrive/Desktop/CODE/Carnegie Mellon/112 mini proj/hw7_koz/main.py:108>) explain it:
+
+1. **Your audio thread crashes when it reaches `previousKeybind`.** Assigning `previousKeybind = keyBind` anywhere inside `keybindLoop()` makes it local to that function. Line 108 reads it before it has been assigned locally, causing `UnboundLocalError`.
+
+   Initialize it inside the function, before the loop:
+
+   ```python
+   def keybindLoop():
+       previousKeybind = keyBinds["E3"]
+
+       while True:
+           # Your existing loop code
+   ```
+
+2. **Your second thread finishes immediately.** Its target is `test()`, which only prints `123` and returns. It doesn’t run graphics or keep looping.
+
+Both `.start()` calls are correct. The threads start, but one finishes immediately and the other fails once it detects a mapped note.
+
+###############
+
+
+
+#########
+
+prompt to codex:
+
+
+thread '<unnamed>' (15836) panicked at C:\Users\runneradmin\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\pyo3-0.29.0\src\impl_\pyclass.rs:1068:9:
+assertion `left == right` failed: cmu_graphics_helpers::Canvas is unsendable, but sent to another thread
+  left: ThreadId(2)
+ right: ThreadId(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+Exception in thread Thread-2 (main):
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\threading.py", line 1045, in _bootstrap_inner
+    self.run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "c:\Users\eddyv\OneDrive\Desktop\CODE\Carnegie Mellon\112 mini proj\hw7_koz\main.py", line 128, in main
+    runApp(width=400, height=400)
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 1506, in runApp
+    app._app.redrawAllWrapper()
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 746, in redrawAllWrapper
+    self.callUserFn('redrawAll', ())
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 610, in m
+    return appMethod(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 728, in callUserFn
+    fn(*args, **kwargs)
+  File "c:\Users\eddyv\OneDrive\Desktop\CODE\Carnegie Mellon\112 mini proj\hw7_koz\main.py", line 124, in redrawAll
+    drawLabel("working!", 200, 200)
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 547, in drawFn
+    shape(*args, **kwargs)
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 336, in __init__
+    super().__init__('Label', ['value', 'centerX', 'centerY'], args, kwargs)
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\cmu_graphics.py", line 162, in __init__
+    self._shape = slInitShape(clsName, argNames, args, kwargs, isMvc)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\shape_logic.py", line 4115, in slInitShape
+    shape = self.slNew(actualClass, constructorArgs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\shape_logic.py", line 4023, in slNew
+    return (objConstructors[className])(args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\shape_logic.py", line 2328, in __init__
+    self.setDims()
+  File "C:\Users\eddyv\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\cmu_graphics\shape_logic.py", line 2339, in setDims
+    fontCtx.select_font_face(*getFont(self.font, self.bold, self.italic))
+pyo3_runtime.PanicException: assertion `left == right` failed: cmu_graphics_helpers::Canvas is unsendable, but sent to another thread
+  left: ThreadId(2) what is happening?
+
+
+  RESPONSE:
+
+  cmu_graphics creates a native canvas that must stay on the thread where the app starts. In your code, runApp() is started inside graphicsThread, so when redrawAll calls drawLabel, the Rust-backed canvas detects it’s being used from the wrong thread and panics.
+
+Start the graphics app on Python’s main thread and keep only the audio loop in a worker thread. Replace the graphicsThread setup with:
+
+
+That keeps runApp() on the main thread. Making the audio thread a daemon also prevents its infinite loop from keeping Python alive after the graphics window closes. The affected launch code is in main.py:128.
+
+keybindThread = threading.Thread(target=keybindLoop, daemon=True)
+keybindThread.start()
+main()
+
+
+#################
+
+
+
+############
+
+prompt to codex:can you help fix my note queue? i am trying to pass in the values from the thread into the canvas drawing function
+
+RESPONSE :Updated main.py: redrawAll now drains the queue into persistent app.note and app.keybind values, then draws the latest pair every frame. That lets the audio thread keep publishing tuples while the canvas displays the newest one instead of briefly showing a local value or lagging through older entries.
+
+The app starts with “Waiting for note,” and the file reports no errors.
+
+def redrawAll(app):
+    drawLabel("Computer keybinds", 200, 45, size=20, bold=True)
+    drawLabel(f"Note: {app.note}    Key: {app.keybind or '--'}", 200, 105, size=14)
+
+##################
+
+######
+
+prompt to codex: the new note and keybind are not drawing
+
+response:
+
+The audio worker was crashing before it could add anything to note_queue: it looked up "E3" in keyBinds, but that entry didn’t exist. I changed its initial state to None. I also changed the sharp keys to ASCII # to match the note names librosa.hz_to_note returns.
+
+The file now reports no errors. Run the app again; mapped notes should appear on the canvas in main.py.
+
+note_queue = deque(maxlen=3)
+
+
+########
+
+
+
+##########
+
+prompt to codex: please look through the code and understand redrawALL, onStep, and onappstart, notice that onstep cannot directly modify the view, and must be passed to redraw all. now, please add a keyboard to the canvas where the key and note are displayed as being pressed on the keyboard
+
+
+response:
+
+Added a piano keyboard to main.py. onStep now transfers the newest queued note into app state, and redrawAll draws that state and highlights the matching key. The keyboard also shows each mapped computer key; silence clears the highlight, and unmapped notes are shown without highlighting a key.
+
+I aligned sharp note names with librosa’s # format. The file reports no errors; I haven’t run the audio app to verify live pitch detection.
+
+CODE REVERTED
+
+################
+
+
+#################
+
+prompt to codex: i mean computer keyboard, so that the user can see the keybind they are pressing. do not change the librosa keybind dict as librosa uses the non traditional symbol instead of #
+
+response:
+
+Replaced the piano graphic with keycaps for WASD, the arrow keys, and CLICK. When a mapped note is detected, its computer key highlights and the note appears on that key. The detected note and keybind are also shown above the controls.
+
+I kept the Unicode sharp spellings in keyBinds. The file reports no errors; I haven’t verified the live audio input. See main.py.
+
+def drawComputerKey(app, keyLabel, keybind, keyLeft, keyTop, keyWidth=50):
+    keyHeight = 56
+    isPressed = app.keybind == keybind
+    fill = "lightGreen" if isPressed else "white"
+    drawRect(keyLeft, keyTop, keyWidth, keyHeight, fill=fill, border="black")
+    drawLabel(keyLabel, keyLeft + keyWidth / 2, keyTop + 18, bold=True, size=14)
+    if isPressed:
+        drawLabel(app.note, keyLeft + keyWidth / 2, keyTop + 42, size=9)
+
+
+def drawComputerKeyboard(app):
+    drawComputerKey(app, "W", "w", 131, 155)
+    drawComputerKey(app, "A", "a", 76, 215)
+    drawComputerKey(app, "S", "s", 131, 215)
+    drawComputerKey(app, "D", "d", 186, 215)
+
+    drawComputerKey(app, "UP", "up", 297, 155, 44)
+    drawComputerKey(app, "LEFT", "left", 249, 215, 44)
+    drawComputerKey(app, "DOWN", "down", 297, 215, 44)
+    drawComputerKey(app, "RIGHT", "right", 345, 215, 44)
+
+    drawLabel("Mouse", 103, 292, size=12)
+    drawComputerKey(app, "CLICK", "click", 64, 302, 78)
+
+
+def redrawAll(app):
+    drawLabel("Computer keybinds", 200, 45, size=20, bold=True)
+    drawLabel(f"Note: {app.note}    Key: {app.keybind or '--'}", 200, 105, size=14)
+    drawComputerKeyboard(app)
+
+def onStep(app):
+    while True:
+        try:
+            note, keybind = note_queue.pop()
+        except IndexError:
+            break
+        if note is None:
+            app.note = "Listening..."
+            app.keybind = ""
+        elif keybind is None:
+            app.note = note
+            app.keybind = "unmapped"
+        else:
+            app.note = note
+            app.keybind = keybind
+
+#################
+
+
+
+
+#########
+
+prompt to codex:
+
+i have added a new keybind called togglemorse, what i would like for it to do is to enter a mode where note input is overriden, and two notes are substituted for dashes and dots, then, the user can play the notes to write morse code that is interpereted into pressing the associated letter of the alphabet. of course, pressing togglemorse returns everything back to normal
+
+
+response:
+
+Morse mode is implemented in main.py. C3 adds a dot, D3 adds a dash, and one second of silence ends the letter and presses its mapped alphabet key. The existing togglemorse note binding switches Morse mode on or off; the canvas shows the mode, code, and last decoded letter.
+
+I left keyBinds unchanged. The file reports no errors; live audio behavior still needs testing in your setup.
+
+CODE:
+
+MORSE_DASH_NOTE = "D3"
+MORSE_LETTER_GAP = 1.0
+
+MORSE_CODES = {
+    ".-": "a", "-...": "b", "-.-.": "c", "-..": "d",
+    ".": "e", "..-.": "f", "--.": "g", "....": "h",
+    "..": "i", ".---": "j", "-.-": "k", ".-..": "l",
+    "--": "m", "-.": "n", "---": "o", ".--.": "p",
+    "--.-": "q", ".-.": "r", "...": "s", "-": "t",
+    "..-": "u", "...-": "v", ".--": "w", "-..-": "x",
+    "-.--": "y", "--..": "z",
+}
+
+
+def queueDisplayState(note, keybind, morseMode, morseSymbols, lastDecodedLetter):
+    note_queue.append((note, keybind, morseMode,
+                       "".join(morseSymbols), lastDecodedLetter))
+
+
+def finishMorseLetter(morseSymbols):
+    letter = MORSE_CODES.get("".join(morseSymbols))
+    if letter is None:
+        return "?"
+    pydirectinput.press(letter)
+    return letter
+
+
+def keybindLoop():
+    previousKeybind = None
+    previousNote = None
+    morseMode = False
+    morseSymbols = []
+    silenceStarted = None
+    lastDecodedLetter = ""
+    toggleNote = next(note for note, keybind in keyBinds.items()
+                      if keybind == "togglemorse")
+
+    while True:
+        frame = audioStream.read(CHUNK, exception_on_overflow=False)
+        samples = np.frombuffer(frame, dtype=np.int16).astype(np.float32) / 32768.0
+        frequency = float(pitch_detector(samples)[0])
+        now = time.monotonic()
+        
+        if frequency > 1200 or frequency < 90:
+            if previousNote is not None:
+                previousNote = None
+                if morseMode:
+                    silenceStarted = now
+                else:
+                    keyUpAll()
+                    previousKeybind = None
+                queueDisplayState(None, None, morseMode, morseSymbols,
+                                  lastDecodedLetter)
+
+            if (morseMode and morseSymbols and silenceStarted is not None
+                    and now - silenceStarted >= MORSE_LETTER_GAP):
+                lastDecodedLetter = finishMorseLetter(morseSymbols)
+                morseSymbols.clear()
+                silenceStarted = None
+                queueDisplayState(None, None, morseMode, morseSymbols,
+                                  lastDecodedLetter)
+            continue
+
+        note = librosa.hz_to_note(frequency)
+        noteChanged = note != previousNote
+        previousNote = note
+
+        if (morseMode and morseSymbols and silenceStarted is not None
+                and now - silenceStarted >= MORSE_LETTER_GAP):
+            lastDecodedLetter = finishMorseLetter(morseSymbols)
+            morseSymbols.clear()
+            queueDisplayState(None, None, morseMode, morseSymbols,
+                              lastDecodedLetter)
+        silenceStarted = None
+
+        if note == toggleNote:
+            if noteChanged:
+                morseMode = not morseMode
+                morseSymbols.clear()
+                lastDecodedLetter = ""
+                keyUpAll()
+                previousKeybind = None
+                queueDisplayState(note, "togglemorse", morseMode,
+                                  morseSymbols, lastDecodedLetter)
+            continue
+
+        if morseMode:
+            if noteChanged:
+                if note == MORSE_DOT_NOTE:
+                    morseSymbols.append(".")
+                    keybind = "DOT"
+                elif note == MORSE_DASH_NOTE:
+                    morseSymbols.append("-")
+                    keybind = "DASH"
+                else:
+                    keybind = "ignored"
+                queueDisplayState(note, keybind, morseMode, morseSymbols,
+                                  lastDecodedLetter)
+            continue
+
+        keyBind = keyBinds.get(note)
+        if keyBind is None:
+            keyUpAll()
+            previousKeybind = None
+            if noteChanged:
+                queueDisplayState(note, "unmapped", morseMode, morseSymbols,
+                                  lastDecodedLetter)
+            continue
+
+        handleInput(keyBind, previousKeybind)
+        previousKeybind = keyBind
+        if noteChanged:
+            queueDisplayState(note, keyBind, morseMode, morseSymbols,
+                              lastDecodedLetter)
+
+def drawComputerKey(app, keyLabel, keybind, keyLeft, keyTop, keyWidth=50):
+    keyHeight = 56
+    isPressed = app.keybind == keybind
+    fill = "lightGreen" if isPressed else "white"
+    drawRect(keyLeft, keyTop, keyWidth, keyHeight, fill=fill, border="black")
+    drawLabel(keyLabel, keyLeft + keyWidth / 2, keyTop + 28, bold=True, size=14)
+    if isPressed:
+        drawLabel(app.note, keyLeft + keyWidth / 2, keyTop + 42, size=9)
+
+def drawComputerKeyboard(app):
+    drawComputerKey(app, "W", "w", 131, 155)
+    drawComputerKey(app, "A", "a", 76, 215)
+    drawComputerKey(app, "S", "s", 131, 215)
+    drawComputerKey(app, "D", "d", 186, 215)
+    drawComputerKey(app, "SPACE", "space", 76, 275, 517)
+
+    drawComputerKey(app, "UP", "up", 302, 155)
+    drawComputerKey(app, "LEFT", "left", 249, 215)
+    drawComputerKey(app, "DOWN", "down", 302, 215)
+    drawComputerKey(app, "RIGHT", "right", 355, 215)
+
+    drawComputerKey(app, "CLICK", "click", 421, 215, 60)
+    drawComputerKey(app, "RIGHTCLICK", "rightclick", 485, 215, 108)
+
+def redrawAll(app):
+    drawLabel("Computer keybinds", 400, 45, size=20, bold=True)
+    drawLabel(f"Mode: {'Morse' if app.morse_mode else 'Normal'}", 400, 75, size=14)
+    drawLabel(f"Note: {app.note}    Key: {app.keybind or '--'}", 400, 105, size=14)
+    drawComputerKeyboard(app)
+    if app.morse_mode:
+        drawLabel(f"Morse: {app.morse_code or '--'}    Last letter: {app.decoded_letter or '--'}",
+                  400, 390, size=16)
+        drawLabel("C3 = dot    D3 = dash    1-second pause sends letter",
+                  400, 420, size=13)
+        drawLabel("F♯3 toggles Morse mode", 400, 445, size=13)
+
+def onStep(app):
+    while True:
+        try:
+            note, keybind, morseMode, morseCode, decodedLetter = note_queue.popleft()
+        except IndexError:
+            break
+        app.morse_mode = morseMode
+        app.morse_code = morseCode
+        app.decoded_letter = decodedLetter
+        if note is None:
+            app.note = "Listening..."
+            app.keybind = ""
+        elif keybind is None:
+            app.note = note
+            app.keybind = "unmapped"
+        else:
+            app.note = note
+            app.keybind = keybind
+
+def onAppStart(app):
+    app.note = "Waiting for note"
+    app.keybind = ""
+    app.morse_mode = False
+    app.morse_code = ""
+    app.decoded_letter = ""
+
+#################
