@@ -8,7 +8,6 @@ import threading
 from collections import deque
 import time
 
-
 ############################## PYAUDIO CONFIG ###########################
 
 p = pyaudio.PyAudio()
@@ -18,9 +17,11 @@ RATE = 44100
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 INPUT_DEVICE_INDEX = 1
-CAPTURE_SECONDS = 5
 
-device = p.get_device_info_by_index(INPUT_DEVICE_INDEX)
+try:
+    device = p.get_device_info_by_index(INPUT_DEVICE_INDEX)
+except Exception:
+    raise Exception("no microphone connected")
 
 audioStream = p.open(
         input=True,
@@ -45,7 +46,8 @@ pydirectinput.PAUSE = 0.01
 
 MORSE_DOT_NOTE = "C3"
 MORSE_DASH_NOTE = "C♯3"
-MORSE_LETTER_GAP = 1.0
+TOGGLE_NOTE = "F♯3"
+MORSE_LETTER_GAP = 1.0   
 
 MORSE_CODES = {
     ".-": "a", "-...": "b", "-.-.": "c", "-..": "d",
@@ -72,7 +74,6 @@ keyBinds = {
 "B3": "rightclick",
 "A3": "space",
 "F♯3": "togglemorse"
-
 }
 
 
@@ -86,18 +87,17 @@ def keybindLoop():
     morseSymbols = []
     silenceStarted = None
     lastDecodedLetter = ""
-    toggleNote = next(note for note, keybind in keyBinds.items()
-                      if keybind == "togglemorse")
+
 
     while True:
         frequency = getFrequency()
-        now = time.monotonic()
-        noteInRange = frequency >= 90 and frequency <= 1200
+        noteInRange = frequency >= 90 and frequency <= 1200 and pitch_detector.get_confidence()>0.6
 
         if noteInRange==False:
             if previousNote is not None:
                 previousNote = None
                 if morseMode:
+                    now = time.monotonic()
                     silenceStarted = now
                 else:
                     keyUpAll()
@@ -118,7 +118,7 @@ def keybindLoop():
         noteChanged = note != previousNote
         previousNote = note
 
-        if note == toggleNote:
+        if note == TOGGLE_NOTE:
             if noteChanged:
                 morseMode = not morseMode
                 morseSymbols.clear()
@@ -213,26 +213,33 @@ def finishMorseLetter(morseSymbols):
 ################### CMU GRAPHICS #################
 
 def redrawAll(app):
+    drawLabel(f"Device: {app.device.get('name')}", 140, 10, size = 14)
     drawLabel("Computer keybinds", 400, 45, size=20, bold=True)
     drawLabel("Play F♯3 to toggle morse-mode!", 400, 125)
     drawLabel(f"Mode: {'Morse' if app.morse_mode else 'Normal'}", 400, 75, size=14)
     drawLabel(f"Note: {app.note}    Key: {app.keybind or '--'}", 400, 105, size=14)
+    
     drawComputerKeyboard(app)
-    if app.morse_mode:
+    drawSquares(app)
+
+    if app.morse_mode == True:
         drawLabel(f"Morse: {app.morse_code or '--'}    Last letter: {app.decoded_letter or '--'}",
                   400, 390, size=16)
         drawLabel("C3 = dot    D3 = dash    1-second pause sends letter",
                   400, 420, size=13)
         drawLabel("F♯3 toggles Morse mode", 400, 445, size=13)
 
+
 def onStep(app):
-    while True:
+
         try:
             note, keybind, morseMode, morseCode, decodedLetter = note_queue.popleft()
         except IndexError:
-            break
+            return None
         app.morse_mode = morseMode
         app.morse_code = morseCode
+
+
         app.decoded_letter = decodedLetter
         if note is None:
             app.note = "Listening..."
@@ -244,24 +251,56 @@ def onStep(app):
             app.note = note
             app.keybind = keybind
 
+            if app.keyColors.get(keybind) != None:
+                app.squares.append((app.squareX, app.squareY, 20, 20, app.keyColors.get(keybind)))
+                app.squareX+=20
+
+            if app.squareX == 800:
+                app.squareX = 0
+                app.squareY+=20
+
 def onAppStart(app):
+    app.squares = []
+    app.squareX = 0
+    app.squareY = 340
     app.note = "Waiting for note"
     app.keybind = ""
     app.morse_mode = False
     app.morse_code = ""
     app.decoded_letter = ""
+    app.device = device
+    app.keyColors = {
+"a": "red",
+"s": "orange",
+"d": "yellow",   
+"w": "green", 
+"up": "blue",
+"down": "purple",
+"right": "black",
+"left": "pink",
+"click": "brown",
+"rightclick": "grey",
+"space": "teal",
+    }
 
 def main():
     runApp(width=800, height=600)
 
 def drawComputerKey(app, keyLabel, keybind, keyLeft, keyTop, keyWidth=50):
     keyHeight = 56
+
     isPressed = app.keybind == keybind
     fill = "lightGreen" if isPressed else "white"
     drawRect(keyLeft, keyTop, keyWidth, keyHeight, fill=fill, border="black")
     drawLabel(keyLabel, keyLeft + keyWidth / 2, keyTop + 28, bold=True, size=14)
+    
     if isPressed:
         drawLabel(app.note, keyLeft + keyWidth / 2, keyTop + 42, size=9)
+
+def drawSquares(app):
+    for square in app.squares:
+        x, y, width, height, fill = square
+        drawRect(x, y, width, height, fill=fill)
 
 def drawComputerKeyboard(app):
     drawComputerKey(app, "W", "w", 131, 155)
@@ -279,6 +318,7 @@ def drawComputerKeyboard(app):
     drawComputerKey(app, "RIGHTCLICK", "rightclick", 485, 215, 108)
 
 keybindThread = threading.Thread(target=keybindLoop, daemon=True)
+
 keybindThread.start()
 main()
 

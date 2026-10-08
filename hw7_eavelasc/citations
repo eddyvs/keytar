@@ -1,0 +1,65 @@
+#
+
+Source: https://people.csail.mit.edu/hubert/pyaudio/docs/
+
+Desc: to understand the pyaudio package
+
+#
+
+#
+
+source: https://stackoverflow.com/questions/40704026/voice-recording-using-pyaudio
+
+desc: understanding how to practically read audio I/O with pyaudio
+
+#
+
+#
+
+source: https://aubio.org/documentation
+
+Desc: to understand the aubio package
+
+
+#
+
+#
+
+source: https://www.w3schools.com/Python/ref_module_threading.asp
+
+Desc: to understand multithreading
+
+#
+
+#
+
+Source: https://librosa.org/doc/latest/index.html
+
+Desc: to understand the librosa signal processing package
+
+
+#
+
+#
+
+Source: vscode
+
+desc: to code my project
+
+#
+
+#
+
+Source: OpenAI codex/Copilot (copilot routed me to codex models)
+
+desc: to debug and generate rudimentary code for my project
+
+#
+
+#
+
+Source: claude
+
+desc: to parse and produce the final ai use txt file from chat jsons
+
+#
